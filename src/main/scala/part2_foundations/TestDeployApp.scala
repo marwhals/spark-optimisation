@@ -1,6 +1,6 @@
 package part2_foundations
 
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SaveMode, SparkSession}
 
 /**
  * - Packaging and shipping a Spark application to a cluster via Jars
