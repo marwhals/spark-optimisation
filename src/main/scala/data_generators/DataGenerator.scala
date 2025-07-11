@@ -105,6 +105,74 @@ object DataGenerator {
     scoreWriter.close()
   }
 
+  /**
+   * A function which generates random text in lorem-ipsum fashion, in chunks, as normal "paragraphs".
+   * Supports an optional senders argument to attach every paragraph to a sender/broker ID for key-value crunching.
+   * If the number of senders is positive, then each line will have a prefix "(senderID) // ", where senderID is randomly picked between 1 and nSenders.
+   *
+   * @param dstPath the file path where you want to write the text
+   * @param nWords the number of words
+   * @param nParagraphs the number of lines
+   * @param nSenders (default 0) the number of unique senders
+   */
+  def generateText(dstPath: String, nWords: Int, nParagraphs: Int, nSenders: Int = 0): Unit = {
+    assert(nSenders >= 0)
+    assert(nWords > 1)
+    assert(nParagraphs > 0)
+
+    val words = Source.fromFile("src/main/resources/data/lipsum/words.txt").getLines().toSeq
+    val numWords = words.length
+
+    def pickRandomWord(isLast: Boolean = false) =
+      words(random.nextInt(numWords)) + (if (!isLast && random.nextInt() % 5 == 0) "," else "")
+
+    val lowSentenceLimit = 2
+    val highSentenceLimit = 14
+    val avgParLength = nWords / nParagraphs
+    val lowParLimit = avgParLength / 2
+    val highParLimit = avgParLength * 3 / 2
+    val writer = new PrintWriter(new FileWriter(new File(dstPath)))
+
+    @tailrec
+    def generateLipsumRec(nWords: Int, nParagraphs: Int, nWordsInParagraph: Int, attachSender: Boolean = false): Unit = {
+      val sentenceLength =
+        if (nWordsInParagraph < highSentenceLimit) nWordsInParagraph
+        else randomIntBetween(lowSentenceLimit, highSentenceLimit)
+
+      val ending = if (sentenceLength == nWordsInParagraph) "." else ". "
+      val sentence = ((1 until sentenceLength).map(_ => pickRandomWord()) :+ pickRandomWord(true)).mkString(" ") + ending
+
+      if (attachSender) {
+        val sender = (randomInt(nSenders) + 1) + " // "
+        writer.print(sender)
+      }
+      writer.print(sentence.capitalize)
+
+      val nWordsInParagraphLeft = nWordsInParagraph - sentenceLength
+      val nParagraphsLeft = nParagraphs - 1
+
+      if (nWordsInParagraphLeft == 0) {
+        if (nParagraphsLeft > 0) {
+          val nWordsLeft = nWords - sentenceLength
+          val nextParLength =
+            if (nParagraphsLeft == 1) nWordsLeft
+            else randomIntBetween(lowParLimit, highParLimit)
+
+          writer.print("\n")
+          generateLipsumRec(nWords - sentenceLength, nParagraphsLeft, nextParLength, nSenders > 0)
+        }
+      } else {
+        generateLipsumRec(nWords - sentenceLength, nParagraphs, nWordsInParagraphLeft)
+      }
+    }
+
+    val nWordsInFirstParagraph = if (nWords < highParLimit) nWords else randomIntBetween(lowParLimit, highParLimit)
+
+    generateLipsumRec(nWords, nParagraphs, nWordsInFirstParagraph, nSenders > 0)
+    writer.flush()
+    writer.close()
+  }
+
   def main(args: Array[String]): Unit = {
   }
 }
