@@ -64,6 +64,21 @@ object DataGenerator {
   }
 
   /**
+   * For the iterator-to-iterator transformations lecture.
+   * Generates a number of metrics in the style of "metricName metricValue", where metricName is a string and metricValue is a double.
+   *
+   * @param destPath the path of the file the metrics will be written to.
+   * @param nMetrics the number of metrics to generate
+   * @param limit the maximum value any metric can take
+   */
+  def generateMetrics(destPath: String, nMetrics: Int, limit: Double = 1000000) = {
+    val writer = new PrintWriter(new FileWriter(new File(destPath)))
+    (1 to nMetrics).foreach(_ => writer.println(s"${randomString(16)} ${randomDouble(1000000)}"))
+    writer.flush()
+    writer.close()
+  }
+
+  /**
    * For the RDD joins & cogroup lectures. Generates 3 files:
    * 1) with student IDs and names
    * 2) with student IDs and emails
