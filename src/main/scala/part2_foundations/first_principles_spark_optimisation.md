@@ -127,7 +127,7 @@ TODO add diagram of Spark Layered Architecture
 - An action triggers a job
 - A job is split into stages
   - each stage is dependent on the stage before it
-  - a staged must fully complete before the next stage can start
+  - a stage must fully complete before the next stage can start
   - for performance: (usually) minimise the number of stages
 - A stage has tasks
   - task = smallest unit of work

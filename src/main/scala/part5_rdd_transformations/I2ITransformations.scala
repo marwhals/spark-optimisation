@@ -21,10 +21,10 @@ object I2ITransformations {
 
   /**
    * Scenario
-    Science project
-    each metric has identifier, value
-
-    Return the smallest ("best") 10 metrics (identifiers + values)
+   * Science project
+   * each metric has identifier, value
+   *
+   * Return the smallest ("best") 10 metrics (identifiers + values)
    */
 
   val LIMIT = 10
@@ -48,10 +48,10 @@ object I2ITransformations {
     val iteratorToIteratorTransformation = (records: Iterator[(String, Double)]) => {
       /*
         This is called an iterator-to-iterator transformation
-        - they are NARROW TRANSFORMATIONS  -- can be processed in paralell and independnetly. No shuffles between nodes
+        - they are NARROW TRANSFORMATIONS  -- can be processed in parallel and independently. No shuffles between nodes
         - Spark will "selectively" spill data to disk when partitions are too big for memory
 
-        Warning: don't traverse more than once or convert to collections otherwise everything will be loaded into memory and you will lost the benefit of being able to spill over to disk
+        Warning: don't traverse more than once or convert to collections otherwise everything will be loaded into memory, and you will lose the benefit of being able to spill over to disk
         */
 
       implicit val ordering: Ordering[(String, Double)] = Ordering.by[(String, Double), Double](_._2)
@@ -79,9 +79,73 @@ object I2ITransformations {
   }
 
   /**
-   * TODO - Exercises
+   * Exercises
    */
 
+  /*
+    Better than the "dummy" approach
+    - we are not sorting the entire RDD
+
+    Bad (Worse than the optimal)
+    - We are sorting the entire partition
+    - We are forcing the iterator in memory and this can "OOM exception" your executors
+
+   */
+  def printTopMetricsEx1() = {
+    val topMetrics = readMetrics()
+      .mapPartitions(_.toList.sortBy(_._2).take(LIMIT).iterator)
+      .repartition(1)
+      .mapPartitions(_.toList.sortBy(_._2).take(LIMIT).iterator)
+      .take(LIMIT)
+
+    topMetrics.foreach(println)
+  }
+
+  /**
+   * Better than ex1
+   * - extracting the top 10 values per partition instead of sorting the entire partition
+   *
+   * Bad
+   * - toList forces the entire loading of data in memory --> OOM Exceptions
+   * - This versions requires us to iterate over the data set twice
+   * --- If the list is immutable, time spent allocating objects (and Garbage Collecting)
+   *
+   */
+
+  def printTopMetricsEx2() = {
+    val topMetrics = readMetrics()
+      .mapPartitions { records =>
+        implicit val ordering: Ordering[(String, Double)] = Ordering.by[(String, Double), Double](_._2)
+        val limitedCollection = new mutable.TreeSet[(String, Double)]()
+
+        records.toList.foreach { record => // to list forces the entire loading of data in memory
+          limitedCollection.add(record)
+          if (limitedCollection.size > LIMIT) {
+            limitedCollection.remove(limitedCollection.last)
+          }
+        }
+        // I've traversed the iterator
+        limitedCollection.iterator
+      }
+      .repartition(1)
+      .mapPartitions { records =>
+
+        implicit val ordering: Ordering[(String, Double)] = Ordering.by[(String, Double), Double](_._2)
+        val limitedCollection = new mutable.TreeSet[(String, Double)]()
+
+        records.toList.foreach { record =>
+          limitedCollection.add(record)
+          if (limitedCollection.size > LIMIT) {
+            limitedCollection.remove(limitedCollection.last)
+          }
+        }
+        // I've traversed the iterator
+        limitedCollection.iterator
+      }
+      .take(LIMIT)
+
+    topMetrics.foreach(println)
+  }
 
 
   def main(args: Array[String]): Unit = {
@@ -98,7 +162,7 @@ object I2ITransformations {
    * -- Any transformation per-partition is a narrow transformation
    * -- if partitions are too large, Spark will spill to disk what it can't fit in memory
    * - Anti-Patterns
-   * -- Collecting the iterator in memeory
+   * -- Collecting the iterator in memory
    * -- Multiple passes over the data
    * - Key lessons
    * -- Travers the iterator ONCE

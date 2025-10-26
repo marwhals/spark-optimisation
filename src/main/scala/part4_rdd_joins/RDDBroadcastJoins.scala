@@ -52,7 +52,7 @@ object RDDBroadcastJoins {
   //Step 2 -  after we do this, all executors can refer to the medalsMap locally
   sc.broadcast(medalsMap)
   //Step 3 -  need to avoid shuffles by manually going through the partitions of the big RDD
-  // This lambda is being exucuted on every single executor
+  // This lambda is being executed on every single executor
   val improvedMedalists = leaderboard.mapPartitions { iterator => // iterator of all the tuples in this partition; all the tuples are local to this executor
     iterator.flatMap { record =>
       val (index, name) = record

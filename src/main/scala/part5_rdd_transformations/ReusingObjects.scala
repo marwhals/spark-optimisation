@@ -1,6 +1,5 @@
 package part5_rdd_transformations
 
-
 import data_generators.DataGenerator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
